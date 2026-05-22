@@ -258,8 +258,7 @@ class SensationApp(QWidget):
         self.image_label.setParentApp(self)
         
         # Load hand image based on selection (default to right)
-        image_path = os.path.join('PIC', self.hand_side.capitalize(), 'Hand.jpg')
-        self.original_pixmap = QPixmap(image_path)
+        self.loadHandImage()
         
         # Load hand mask
         self.loadHandMask()
@@ -757,8 +756,7 @@ class SensationApp(QWidget):
         self.stimulation_types = data["stimulation"]
         
         # Load the appropriate hand image
-        image_path = os.path.join('PIC', self.hand_side.capitalize(), 'Hand.jpg')
-        self.original_pixmap = QPixmap(image_path)
+        self.loadHandImage()
         
         # Load the matching hand mask
         self.loadHandMask()
@@ -803,6 +801,27 @@ class SensationApp(QWidget):
         # Update the parameter display instead of updating individual labels
         self.updateParameterDisplay()
 
+    def loadHandImage(self):
+        """Load the selected hand image, accepting common image extensions."""
+        hand_dir = os.path.join('PIC', self.hand_side.capitalize())
+        for filename in ('Hand.jpg', 'Hand.png', 'Hand.jpeg', 'Hand.bmp'):
+            image_path = os.path.join(hand_dir, filename)
+            if os.path.exists(image_path):
+                pixmap = QPixmap(image_path)
+                if not pixmap.isNull():
+                    self.original_pixmap = pixmap
+                    self.hand_image_path = image_path
+                    print(f"Hand image loaded from {image_path}")
+                    return
+
+        self.original_pixmap = QPixmap()
+        self.hand_image_path = None
+        QMessageBox.warning(
+            self,
+            "Warning",
+            f"Unable to load hand image from {hand_dir}"
+        )
+
     def loadHandMask(self):
         """Load the binary mask for the selected hand (right or left)"""
         import cv2
@@ -820,6 +839,17 @@ class SensationApp(QWidget):
                 QMessageBox.warning(self, "Warning", f"Unable to load hand mask from {mask_path}")
             else:
                 print(f"Hand mask loaded from {mask_path}")
+                image_width = self.original_pixmap.width()
+                image_height = self.original_pixmap.height()
+                if image_width > 0 and image_height > 0:
+                    mask_height, mask_width = self.hand_mask.shape
+                    if (mask_width, mask_height) != (image_width, image_height):
+                        QMessageBox.warning(
+                            self,
+                            "Warning",
+                            "The hand image and binary mask have different sizes. "
+                            "Please resize the hand image to match the mask before drawing."
+                        )
                 
                 # Save mask for debugging if needed
                 # debug_path = os.path.join('PIC', self.hand_side.capitalize(), 'debug_mask.jpg')
